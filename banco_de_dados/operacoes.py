@@ -36,19 +36,35 @@ class OperacaoMysql:
         linha_afetadas = self._cursor.rowcount
         return False if linha_afetadas <= 0 else True
     
+    # Adição de novos registros de alterações
+    def novo_registro(self, registros:dict) -> bool:
+        sintaxe = 'INSERT INTO operacao (id_user, campo, dado_antigo, dado_novo) VALUES (%s, %s, %s, %s)'
+        self._cursor.execute(sintaxe, tuple(registros.values()))
+        self._mydb.commit()
+        linha_afetadas = self._cursor.rowcount
+        return False if linha_afetadas <= 0 else True
+    
     # Atualizar usuário, com o campo que deseja alterar e o id
     def atualizar_usuario(self, usuario:tuple, campo:str) -> bool:
         sintaxe = f'UPDATE usuarios SET {campo} = %s WHERE id = %s'
         
         self._cursor.execute(sintaxe, usuario)
         self._mydb.commit()
-        linha_afetadas = self._cursor.rowcount
-        return False if linha_afetadas <= 0 else True
+       
+        return None
 
     # Listar todos os usuários armazenados no banco de dados
     @property
     def listar_usuarios(self) -> list[str]:
         sintaxe = 'SELECT * FROM usuarios'
+        
+        self._cursor.execute(sintaxe)
+        return self._cursor.fetchall()
+    
+    #Listar todas as alterações que foram realizadas no banco de dados
+    @property
+    def listar_alteracao(self) -> list[str]:
+        sintaxe = 'SELECT * FROM operacao'
         
         self._cursor.execute(sintaxe)
         return self._cursor.fetchall()
@@ -70,6 +86,22 @@ class OperacaoMysql:
         self._mydb.commit()
         linha_afetadas = self._cursor.rowcount
         return False if linha_afetadas <= 0 else True
+    
+    # Procurar um determinado usuário
+    def procurar_usuario(self, id_):
+        sintaxe = 'SELECT * from usuarios WHERE id = %s'
+        self._cursor.execute(sintaxe, (id_,))
+        try:
+            dado = self._cursor.fetchall()[0]
+            
+            return  {
+                    'id': dado[0],
+                    'nome': dado[1],
+                    'nick': dado[2],
+                    'senha': dado[3]
+                }
+        except IndexError:
+            return True
 
 if __name__ == '__main__':
     CONEXAO = ConexaoBancoDeDados(

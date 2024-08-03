@@ -1,7 +1,8 @@
 from banco_de_dados import OperacaoMysql, ConexaoBancoDeDados
+from backup import OperacaoJson, FILE_JSON
 import os
 
-CONEXAO = ConexaoBancoDeDados(
+CONEXAO_CRUD = ConexaoBancoDeDados(
     host='localhost',
     hostname='root',
     password='1234',
@@ -9,7 +10,7 @@ CONEXAO = ConexaoBancoDeDados(
 )
 
 class Main:
-    def __init__(self, operacao) -> None:
+    def __init__(self, operacao:OperacaoMysql) -> None:
         self.operacao = operacao
     def novo_usuario(self):
         
@@ -28,7 +29,6 @@ class Main:
                 else 'Problema em adicionar o usuário 😑😐\n'
             )
         
-
     def remover_usuario(self):
         while True:
             id_usuario = input('ID: ')
@@ -54,7 +54,13 @@ class Main:
         for user in self.operacao.listar_usuarios:
             print(f'{user[0]:<20} {user[1]:<30} {user[2]:<20} {user[3]}')
 
-    def atualizar_usuario(self):
+    def listar_atualizacao_recentes(self):
+        os.system('cls')
+        print(f'{"ID":<20} {"ID USER":<30} {"CAMPO":<20} {"DADO ALTERADO":<20} {"NOVO DADO":<20} {"DATA E HORA"}')
+        for registro in self.operacao.listar_alteracao:
+            print(f'{registro[0]:<20} {registro[1]:<30} {registro[2]:<20} {registro[3]:<20} {registro[4]:<20} {registro[5]}')
+        
+    def atualizar_usuario(self, arquivo_json:list):
         print(
             '''
                     -------------------------------
@@ -87,18 +93,48 @@ class Main:
 
                     """
                 )
-                self.atualizar_usuario()
-
+                return self.atualizar_usuario(arquivo_json)
         id_usuario = input('\nID: ')
+        dado_user = self.operacao.procurar_usuario(id_usuario)
+        
+        if not isinstance(dado_user, dict):
+            print(
+                  '''
+                  Status
+                        Problema em atualizar o usuário 
+                        Verifique que o id é igual😑😐
+                  '''
+            )
+            return self.atualizar_usuario(arquivo_json)
+
         novo_valor = input('Valor: ')
+        dict_ = {
+            'id': dado_user['id'],
+            'campo': campo_escolhido, 
+            'dado_antigo': dado_user[f'{campo_escolhido}'],
+            'dado': novo_valor
+        }
         print(
             'Status:',            
-            'Usuário atualizado com sucesso 😁✌\n' 
-            if self.operacao.atualizar_usuario(campo=campo_escolhido, usuario=(novo_valor, id_usuario))
-            else 'Problema em atualizar o usuário 😑😐\n'
+            'Usuário atualizado com sucesso 😁✌\n'   
         )
-with CONEXAO as mysql:
+        self.operacao.atualizar_usuario(campo=campo_escolhido, usuario=(novo_valor, id_usuario))
+        arquivo_json.append(dict_)
+        return arquivo_json
+    
+    def salvar_alteracao(self, registros:dict):
+        if registros == []:
+            return True
+        for registro in registros:
+            if not self.operacao.novo_registro(registro):
+                raise ValueError("Backup não foi realizado")
+        return True
+
+with CONEXAO_CRUD as mysql:
     operacao = OperacaoMysql(mybd=mysql) 
+    opp = OperacaoJson()
+    arquivo_json = opp.jsonread([])
+    
     while True:
         print(
         '''
@@ -111,7 +147,8 @@ with CONEXAO as mysql:
             4.                  ATUALIZAR INFORMAÇÕES DO USUÁRIO
             5.                  APAGAR TODOS OS USUÁRIOS
             6.                  LIMPA TERMINAL
-            7.                  SAIR
+            7.                  ALTERAÇÕES REALIZADAS NOS USUÁRIOS
+            8.                  SAIR
             ------------------------------------------------------------------
         '''
         )
@@ -131,17 +168,28 @@ with CONEXAO as mysql:
                 main.listar_usuarios()
 
             case '4':
-                main.atualizar_usuario()
+                lista = main.atualizar_usuario(arquivo_json)
+                opp.jsonwrite(lista)
 
             case '5':
                 operacao.apagar_usuarios()
 
             case '7':
+                main.listar_atualizacao_recentes()
+
+            case '8':
                 print(
                     '''
                         OBRIGADO PELA ATENÇÃO VOLTE SEMPRE ;) ^_~
                     '''
                 )
+                main.salvar_alteracao(arquivo_json)
+                print(
+                    '''
+                                        Backup realizado com sucesso....
+                    '''
+                )
+                os.remove(FILE_JSON)
                 break
             
             case '6':
