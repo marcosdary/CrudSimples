@@ -102,7 +102,7 @@ class OperacaoMysql:
                 }
         except IndexError:
             return True
-
+                     
 if __name__ == '__main__':
     CONEXAO = ConexaoBancoDeDados(
         host='localhost',
